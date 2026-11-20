@@ -46,7 +46,7 @@
 <body class="min-h-screen flex flex-col select-none">
 
   <!-- ===================================================================== -->
-  <!-- CONFIGURAZIONE FIREBASE (Azienda Setaccioli - Pronta all'uso)         -->
+  <!-- CONFIGURAZIONE FIREBASE & CODICE SEGRETO PRIMO ADMIN                  -->
   <!-- ===================================================================== -->
   <script>
     const MANUAL_FIREBASE_CONFIG = {
@@ -57,19 +57,22 @@
       messagingSenderId: "767785912441",
       appId: "1:767785912441:web:a5bdf10673e2c44546eca8"
     };
+
+    // Codice riservato SOLO a te e ai titolari per registrarsi direttamente come Admin
+    const ADMIN_MASTER_SECRET = "SETACCIOLI2026";
   </script>
 
-  <!-- SCHERMATA DI LOGIN CON PIN -->
+  <!-- SCHERMATA DI ACCESSO / REGISTRAZIONE AUTONOMA -->
   <div id="login-screen" class="fixed inset-0 z-50 bg-slate-900 text-white flex flex-col justify-between p-6 overflow-y-auto">
-    <div class="max-w-md w-full mx-auto pt-4">
-      <div class="flex items-center justify-between mb-6">
+    <div class="max-w-md w-full mx-auto pt-4 space-y-6">
+      <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-lg">
             <i data-lucide="warehouse" class="w-6 h-6"></i>
           </div>
           <div>
             <h1 class="text-xl font-extrabold tracking-tight">Magazzino Live</h1>
-            <p class="text-xs text-slate-400">Accesso Operatori & Direzione</p>
+            <p class="text-xs text-slate-400">Azienda Setaccioli • Accesso Personale</p>
           </div>
         </div>
         <span id="conn-badge-login" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
@@ -77,48 +80,58 @@
         </span>
       </div>
 
-      <p class="text-sm text-slate-300 mb-3 font-medium">1. Seleziona il tuo profilo:</p>
-      <div id="user-select-grid" class="grid grid-cols-2 gap-2.5 mb-6"></div>
-
-      <!-- Tastierino PIN -->
-      <div id="pin-box" class="hidden bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-xl">
-        <div class="flex items-center justify-between mb-3">
-          <div>
-            <span class="text-xs text-slate-400">Accesso come</span>
-            <h2 id="selected-user-label" class="text-base font-bold text-white">—</h2>
-          </div>
-          <span id="selected-role-badge" class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md"></span>
-        </div>
-
-        <div class="flex justify-center gap-3 my-4" id="pin-dots">
-          <div class="w-4 h-4 rounded-full border-2 border-slate-500 transition-all"></div>
-          <div class="w-4 h-4 rounded-full border-2 border-slate-500 transition-all"></div>
-          <div class="w-4 h-4 rounded-full border-2 border-slate-500 transition-all"></div>
-          <div class="w-4 h-4 rounded-full border-2 border-slate-500 transition-all"></div>
-        </div>
-        <p id="pin-error" class="text-center text-xs text-rose-400 font-semibold h-4 mb-2"></p>
-
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="pressPin('1')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">1</button>
-          <button onclick="pressPin('2')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">2</button>
-          <button onclick="pressPin('3')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">3</button>
-          <button onclick="pressPin('4')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">4</button>
-          <button onclick="pressPin('5')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">5</button>
-          <button onclick="pressPin('6')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">6</button>
-          <button onclick="pressPin('7')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">7</button>
-          <button onclick="pressPin('8')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">8</button>
-          <button onclick="pressPin('9')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">9</button>
-          <button onclick="clearPin()" class="h-12 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-xs font-bold uppercase">Canc</button>
-          <button onclick="pressPin('0')" class="h-12 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-lg font-bold">0</button>
-          <button onclick="backspacePin()" class="h-12 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center">
-            <i data-lucide="delete" class="w-5 h-5"></i>
-          </button>
-        </div>
+      <!-- Selettore Accedi / Crea Account -->
+      <div class="grid grid-cols-2 bg-slate-800 p-1 rounded-2xl border border-slate-700">
+        <button id="tab-btn-login" onclick="switchAuthMode('login')" class="py-2.5 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition">
+          Accedi
+        </button>
+        <button id="tab-btn-register" onclick="switchAuthMode('register')" class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition">
+          Crea Account
+        </button>
       </div>
+
+      <!-- FORM LOGIN -->
+      <form id="form-login" onsubmit="handleLoginSubmit(event)" class="bg-slate-800/90 border border-slate-700 rounded-2xl p-5 space-y-4 shadow-xl">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Il tuo Nome / Username</label>
+          <input id="login-name" type="text" required autocomplete="username" placeholder="Es. Igor o Marco Rossi" class="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">La tua Password</label>
+          <input id="login-pass" type="password" required autocomplete="current-password" placeholder="Inserisci la tua password" class="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500" />
+        </div>
+        <p id="login-error" class="text-xs text-rose-400 font-semibold min-h-[16px]"></p>
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-sm shadow-lg active:scale-95 transition">
+          Entra in Magazzino
+        </button>
+      </form>
+
+      <!-- FORM REGISTRAZIONE AUTONOMA -->
+      <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="hidden bg-slate-800/90 border border-slate-700 rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="bg-slate-900/80 border border-slate-700 p-3 rounded-xl text-xs text-slate-300">
+          Crea il tuo account personale. I nuovi account partono automaticamente come <strong>Operaio</strong>.
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Nome e Cognome (o Nome univoco)</label>
+          <input id="reg-name" type="text" required placeholder="Es. Marco Rossi" class="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Scegli una Password personale (min. 4 caratteri)</label>
+          <input id="reg-pass" type="password" minlength="4" required placeholder="Password segreta personale" class="w-full px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Codice Direzione (opzionale — solo per Titolari/Admin)</label>
+          <input id="reg-admin-code" type="password" placeholder="Lascia vuoto se sei un operaio" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500" />
+        </div>
+        <p id="reg-error" class="text-xs text-rose-400 font-semibold min-h-[16px]"></p>
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-sm shadow-lg active:scale-95 transition">
+          Registra Account & Entra
+        </button>
+      </form>
     </div>
 
     <div class="max-w-md w-full mx-auto text-center pt-4">
-      <p class="text-[11px] text-slate-500">PIN predefinito demo: <span class="text-slate-300 font-mono">1234</span></p>
+      <p class="text-[11px] text-slate-500">Ogni operatore è responsabile degli attrezzi presi col proprio account.</p>
     </div>
   </div>
 
@@ -218,7 +231,7 @@
         <div>
           <span class="text-[10px] font-black uppercase tracking-wider bg-slate-950 text-amber-400 px-2 py-0.5 rounded">Area Riservata Direzione</span>
           <h2 class="font-extrabold text-lg mt-1">Pannello Amministratore</h2>
-          <p class="text-xs font-medium text-slate-900/80">Gestione inventario, personale, PIN e stampa QR Code.</p>
+          <p class="text-xs font-medium text-slate-900/80">Gestione inventario, promozione ruoli e stampa QR Code.</p>
         </div>
         <i data-lucide="shield-check" class="w-9 h-9 text-slate-950/80"></i>
       </div>
@@ -263,32 +276,24 @@
         </button>
       </div>
 
-      <!-- Gestione Personale & Ruoli -->
+      <!-- Gestione Account Registrati & Promozione Ruoli -->
       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
-          <i data-lucide="users" class="w-4 h-4 text-amber-500"></i>
-          Gestione Personale & Permessi
-        </h3>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <input id="new-user-name" type="text" placeholder="Nome (es. Marco)" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
-          <input id="new-user-pin" type="text" maxlength="4" inputmode="numeric" placeholder="PIN 4 cifre" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono" />
-          <select id="new-user-role" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold">
-            <option value="worker">Ruolo: Operaio</option>
-            <option value="admin">Ruolo: Amministratore</option>
-          </select>
+        <div>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-amber-500"></i>
+            Account Registrati & Controllo Ruoli
+          </h3>
+          <p class="text-[11px] text-slate-500 mt-0.5">Solo un Amministratore può promuovere un collega ad Admin o rimuovere un account.</p>
         </div>
-        <button onclick="addNewUser()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl">
-          + Aggiungi Operatore / Titolare
-        </button>
-        <div id="admin-users-list" class="divide-y divide-slate-100 pt-2"></div>
+        <div id="admin-users-list" class="divide-y divide-slate-100 pt-1"></div>
       </div>
 
       <!-- Strumenti Database -->
       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
-        <h3 class="font-bold text-sm text-slate-900">Manutenzione Database</h3>
+        <h3 class="font-bold text-sm text-slate-900">Report & Inizializzazione</h3>
         <div class="flex flex-wrap gap-2">
           <button onclick="exportCSV()" class="flex-1 bg-emerald-600 text-white font-bold text-xs py-2.5 px-3 rounded-xl">Esporta Storico CSV</button>
-          <button onclick="seedDemoData(true)" class="flex-1 bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs py-2.5 px-3 rounded-xl">Inizializza / Reset Demo</button>
+          <button onclick="seedDefaultTools()" class="flex-1 bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs py-2.5 px-3 rounded-xl">Carica Attrezzi Base</button>
         </div>
       </div>
     </section>
@@ -362,7 +367,6 @@
       <div id="qr-reader" class="w-full rounded-2xl overflow-hidden bg-black border-2 border-amber-500"></div>
       <p id="scanner-msg" class="text-center text-xs text-slate-300">Punta la fotocamera sull'etichetta dell'attrezzo.</p>
       
-      <!-- Simulazione rapida per test su PC -->
       <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl">
         <p class="text-[11px] text-slate-400 mb-2 font-semibold">Test rapido senza fotocamera:</p>
         <div id="scanner-sim-buttons" class="flex flex-wrap gap-1.5"></div>
@@ -391,38 +395,33 @@
   <!-- FIREBASE SDK & LOGICA APPLICATIVA -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     let db = null;
     let auth = null;
     let isCloud = false;
 
-    // Stato applicativo
     let users = [];
     let tools = [];
     let logs = [];
     let currentUser = null;
-    let pendingLoginUser = null;
-    let enteredPin = "";
     let currentFilter = "all";
     let html5QrCode = null;
     let selectedQRIds = new Set();
 
-    const DEFAULT_USERS = [
-      { id: "u1", name: "Igor", pin: "1234", role: "admin" },
-      { id: "u2", name: "Giuseppe (Titolare)", pin: "1234", role: "admin" },
-      { id: "u3", name: "Marco", pin: "1234", role: "worker" },
-      { id: "u4", name: "Luca", pin: "1234", role: "worker" }
-    ];
-
     const DEFAULT_TOOLS = [
       { id: "ATT-001", code: "ATT-001", name: "Pinza Amperometrica Fluke 376", category: "Strumenti di Misura", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
-      { id: "ATT-002", code: "ATT-002", name: "Tassellatore Hilti TE 6-A22", category: "Elettroutensili", status: "out", holderId: "u3", holderName: "Marco", locationNote: "Furgone 1", takenAt: "Oggi, 07:45", issueNote: "" },
+      { id: "ATT-002", code: "ATT-002", name: "Tassellatore Hilti TE 6-A22", category: "Elettroutensili", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
       { id: "ATT-003", code: "ATT-003", name: "Valigia Crimpatrici MC4 + Spelafili", category: "Valigette & Kit", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
       { id: "ATT-004", code: "ATT-004", name: "Analizzatore Rete / Trifase", category: "Strumenti di Misura", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
       { id: "ATT-005", code: "ATT-005", name: "Imbracatura Anticaduta + Cordino", category: "Sicurezza & DPI", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" }
     ];
+
+    async function hashPassword(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
 
     async function initApp() {
       lucide.createIcons();
@@ -464,17 +463,27 @@
 
     function startRealtimeListeners() {
       onSnapshot(collection(db, "users"), (snap) => {
-        if (snap.empty) {
-          seedDemoData(false);
-          return;
-        }
         users = snap.docs.map(d => ({ id: d.id, role: "worker", ...d.data() }));
-        renderLoginUsers();
+        if (currentUser) {
+          const fresh = users.find(u => u.id === currentUser.id);
+          if (!fresh) {
+            logoutUser();
+            return;
+          }
+          if (fresh.role !== currentUser.role) {
+            currentUser = fresh;
+            applyRoleUI(currentUser);
+          }
+        }
         renderAdminUsers();
         renderPeople();
       });
 
       onSnapshot(collection(db, "tools"), (snap) => {
+        if (snap.empty) {
+          seedDefaultTools(false);
+          return;
+        }
         tools = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         tools.sort((a, b) => (a.code || "").localeCompare(b.code || ""));
         renderWarehouse();
@@ -490,119 +499,125 @@
     }
 
     function loadLocalData() {
-      users = JSON.parse(localStorage.getItem("mag_users") || "null") || DEFAULT_USERS;
-      tools = JSON.parse(localStorage.getItem("mag_tools") || "null") || DEFAULT_TOOLS;
-      logs = JSON.parse(localStorage.getItem("mag_logs") || "[]");
+      users = JSON.parse(localStorage.getItem("mag_users_v2") || "[]");
+      tools = JSON.parse(localStorage.getItem("mag_tools_v2") || "null") || DEFAULT_TOOLS;
+      logs = JSON.parse(localStorage.getItem("mag_logs_v2") || "[]");
       saveLocalData();
       renderAll();
     }
 
     function saveLocalData() {
       if (!isCloud) {
-        localStorage.setItem("mag_users", JSON.stringify(users));
-        localStorage.setItem("mag_tools", JSON.stringify(tools));
-        localStorage.setItem("mag_logs", JSON.stringify(logs));
+        localStorage.setItem("mag_users_v2", JSON.stringify(users));
+        localStorage.setItem("mag_tools_v2", JSON.stringify(tools));
+        localStorage.setItem("mag_logs_v2", JSON.stringify(logs));
       }
     }
 
-    window.seedDemoData = async function(askConfirm = true) {
-      if (askConfirm && !confirm("Vuoi ripristinare i dati iniziali di esempio?")) return;
+    window.seedDefaultTools = async function(askConfirm = true) {
+      if (askConfirm && !confirm("Vuoi caricare i 5 attrezzi base di esempio?")) return;
       if (isCloud) {
-        for (const u of DEFAULT_USERS) {
-          await setDoc(doc(db, "users", u.id), u);
-        }
         for (const t of DEFAULT_TOOLS) {
           await setDoc(doc(db, "tools", t.id), t);
         }
       } else {
-        users = [...DEFAULT_USERS];
         tools = [...DEFAULT_TOOLS];
-        logs = [];
         saveLocalData();
         renderAll();
       }
-      if (askConfirm) alert("Dati inizializzati con successo!");
     };
 
-    // LOGIN & PIN
-    function renderLoginUsers() {
-      const grid = document.getElementById("user-select-grid");
-      grid.innerHTML = users.map(u => {
-        const isAdm = u.role === "admin";
-        const selected = pendingLoginUser && pendingLoginUser.id === u.id;
-        return `
-          <button onclick="selectLoginUser('${u.id}')" class="p-3 rounded-2xl border text-left transition active:scale-95 ${selected ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold' : 'bg-slate-800/80 text-white border-slate-700 hover:border-slate-500'}">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isAdm ? (selected ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-300') : (selected ? 'bg-slate-900/20 text-slate-950' : 'bg-slate-700 text-slate-300')}">
-                ${isAdm ? 'Admin' : 'Operaio'}
-              </span>
-              <i data-lucide="${isAdm ? 'shield' : 'hard-hat'}" class="w-4 h-4 opacity-80"></i>
-            </div>
-            <p class="text-sm font-bold truncate">${u.name}</p>
-          </button>
-        `;
-      }).join("");
-      lucide.createIcons();
-    }
+    // SWITCH ACCEDI / CREA ACCOUNT
+    window.switchAuthMode = function(mode) {
+      const isLogin = mode === "login";
+      document.getElementById("form-login").classList.toggle("hidden", !isLogin);
+      document.getElementById("form-register").classList.toggle("hidden", isLogin);
+      document.getElementById("login-error").textContent = "";
+      document.getElementById("reg-error").textContent = "";
 
-    window.selectLoginUser = function(uid) {
-      pendingLoginUser = users.find(u => u.id === uid);
-      enteredPin = "";
-      document.getElementById("pin-error").textContent = "";
-      document.getElementById("pin-box").classList.remove("hidden");
-      document.getElementById("selected-user-label").textContent = pendingLoginUser.name;
-      const badge = document.getElementById("selected-role-badge");
-      if (pendingLoginUser.role === "admin") {
-        badge.textContent = "Amministratore";
-        badge.className = "text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-amber-500 text-slate-950";
+      document.getElementById("tab-btn-login").className = isLogin
+        ? "py-2.5 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition"
+        : "py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition";
+      document.getElementById("tab-btn-register").className = !isLogin
+        ? "py-2.5 rounded-xl text-xs font-extrabold bg-emerald-500 text-slate-950 transition"
+        : "py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition";
+    };
+
+    // REGISTRAZIONE AUTONOMA (BLOCCATA SU OPERAIO SALVO CODICE DIREZIONE)
+    window.handleRegisterSubmit = async function(e) {
+      e.preventDefault();
+      const rawName = document.getElementById("reg-name").value.trim();
+      const pass = document.getElementById("reg-pass").value;
+      const adminSecret = document.getElementById("reg-admin-code").value.trim();
+      const errEl = document.getElementById("reg-error");
+      errEl.textContent = "";
+
+      if (rawName.length < 2) {
+        errEl.textContent = "Inserisci un nome valido.";
+        return;
+      }
+
+      const exists = users.find(u => (u.name || "").toLowerCase() === rawName.toLowerCase());
+      if (exists) {
+        errEl.textContent = "Questo nome esiste già. Usa 'Accedi' oppure aggiungi il cognome.";
+        return;
+      }
+
+      if (adminSecret && adminSecret !== ADMIN_MASTER_SECRET) {
+        errEl.textContent = "Codice Direzione non valido. Lascialo vuoto se sei un operaio.";
+        return;
+      }
+
+      // Sicurezza: se non ha inserito il codice segreto esatto, il ruolo è FORZATO a 'worker'
+      const assignedRole = (adminSecret === ADMIN_MASTER_SECRET) ? "admin" : "worker";
+      const passHash = await hashPassword(pass);
+      const id = "usr_" + Date.now();
+
+      const newUser = {
+        id,
+        name: rawName,
+        passHash,
+        role: assignedRole,
+        createdAt: formatNow()
+      };
+
+      if (isCloud) {
+        await setDoc(doc(db, "users", id), newUser);
       } else {
-        badge.textContent = "Operaio";
-        badge.className = "text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-slate-700 text-slate-200";
+        users.push(newUser);
+        saveLocalData();
       }
-      updatePinDots();
-      renderLoginUsers();
+
+      document.getElementById("form-register").reset();
+      completeLogin(newUser);
     };
 
-    window.pressPin = function(digit) {
-      if (!pendingLoginUser || enteredPin.length >= 4) return;
-      enteredPin += digit;
-      updatePinDots();
-      if (enteredPin.length === 4) {
-        if (enteredPin === String(pendingLoginUser.pin)) {
-          completeLogin(pendingLoginUser);
-        } else {
-          document.getElementById("pin-error").textContent = "PIN errato, riprova";
-          enteredPin = "";
-          setTimeout(updatePinDots, 300);
-        }
+    // LOGIN CON NOME E PASSWORD
+    window.handleLoginSubmit = async function(e) {
+      e.preventDefault();
+      const rawName = document.getElementById("login-name").value.trim();
+      const pass = document.getElementById("login-pass").value;
+      const errEl = document.getElementById("login-error");
+      errEl.textContent = "";
+
+      const found = users.find(u => (u.name || "").toLowerCase() === rawName.toLowerCase());
+      if (!found || !found.passHash) {
+        errEl.textContent = "Account non trovato. Se è la prima volta, clicca su 'Crea Account'.";
+        return;
       }
-    };
 
-    window.clearPin = function() {
-      enteredPin = "";
-      document.getElementById("pin-error").textContent = "";
-      updatePinDots();
-    };
-
-    window.backspacePin = function() {
-      enteredPin = enteredPin.slice(0, -1);
-      updatePinDots();
-    };
-
-    function updatePinDots() {
-      const dots = document.getElementById("pin-dots").children;
-      for (let i = 0; i < 4; i++) {
-        dots[i].className = i < enteredPin.length
-          ? "w-4 h-4 rounded-full bg-amber-400 border-2 border-amber-400 scale-110 transition-all"
-          : "w-4 h-4 rounded-full border-2 border-slate-500 transition-all";
+      const passHash = await hashPassword(pass);
+      if (passHash !== found.passHash) {
+        errEl.textContent = "Password errata. Riprova.";
+        return;
       }
-    }
 
-    function completeLogin(user) {
-      currentUser = user;
-      document.getElementById("login-screen").classList.add("hidden");
+      document.getElementById("form-login").reset();
+      completeLogin(found);
+    };
+
+    function applyRoleUI(user) {
       document.getElementById("header-user-name").textContent = user.name;
-
       const isAdm = user.role === "admin";
       const hBadge = document.getElementById("header-role-badge");
       hBadge.textContent = isAdm ? "ADMIN" : "OPERAIO";
@@ -610,7 +625,6 @@
         ? "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950"
         : "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-200";
 
-      // Mostra/nascondi elementi riservati agli amministratori
       const navAdmin = document.getElementById("nav-admin");
       const navGrid = document.getElementById("bottom-nav-grid");
       const btnCsv = document.getElementById("btn-export-csv-history");
@@ -626,18 +640,20 @@
         navGrid.classList.add("grid-cols-4");
         btnCsv.classList.add("hidden");
       }
+    }
 
+    function completeLogin(user) {
+      currentUser = user;
+      document.getElementById("login-screen").classList.add("hidden");
+      applyRoleUI(user);
       switchTab("warehouse");
       renderAll();
     }
 
     window.logoutUser = function() {
       currentUser = null;
-      pendingLoginUser = null;
-      enteredPin = "";
-      document.getElementById("pin-box").classList.add("hidden");
       document.getElementById("login-screen").classList.remove("hidden");
-      renderLoginUsers();
+      switchAuthMode("login");
     };
 
     // NAVIGAZIONE TAB
@@ -670,7 +686,6 @@
     };
 
     function renderAll() {
-      renderLoginUsers();
       renderWarehouse();
       renderPeople();
       renderHistory();
@@ -751,7 +766,7 @@
       lucide.createIcons();
     };
 
-    // MODALE AZIONE ATTREZZO (CON CONTROLLO RUOLI)
+    // MODALE AZIONE ATTREZZO
     window.openToolModal = function(toolId) {
       const t = tools.find(x => x.id === toolId);
       if (!t || !currentUser) return;
@@ -801,18 +816,16 @@
             </div>
           `;
         } else {
-          // Operaio che guarda un attrezzo preso da un altro collega
           body.innerHTML = `
             <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs text-amber-900 space-y-1">
               <p class="font-bold text-sm">Attrezzo in uso da ${t.holderName}</p>
               <p>Preso: ${t.takenAt || 'N/D'} ${t.locationNote ? '• ' + t.locationNote : ''}</p>
-              <p class="text-[11px] text-amber-700 pt-1">Solo ${t.holderName} o un Amministratore possono registrare la riconsegna di questo attrezzo.</p>
+              <p class="text-[11px] text-amber-700 pt-1">Solo ${t.holderName} o un Amministratore possono registrare la riconsegna.</p>
             </div>
             <button onclick="closeActionModal()" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">Chiudi</button>
           `;
         }
       } else {
-        // Stato guasto
         body.innerHTML = `
           <div class="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-xs text-rose-900 space-y-1">
             <p class="font-bold text-sm">Attrezzo fermo per manutenzione</p>
@@ -923,7 +936,12 @@
     // CHI HA COSA
     function renderPeople() {
       const container = document.getElementById("people-list");
-      container.innerHTML = users.map(u => {
+      const validUsers = users.filter(u => u.passHash);
+      if (validUsers.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">Nessun account registrato al momento.</div>`;
+        return;
+      }
+      container.innerHTML = validUsers.map(u => {
         const userTools = tools.filter(t => t.status === "out" && t.holderId === u.id);
         const isAdm = u.role === "admin";
         return `
@@ -983,7 +1001,70 @@
       }).join("");
     }
 
-    // FUNZIONI ADMIN
+    // FUNZIONI ADMIN (PROMOZIONE RUOLI & GESTIONE)
+    window.toggleUserRole = async function(uid) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (uid === currentUser.id) return alert("Non puoi declassare te stesso.");
+      const target = users.find(u => u.id === uid);
+      if (!target) return;
+      const nextRole = target.role === "admin" ? "worker" : "admin";
+      if (!confirm(`Vuoi impostare ${target.name} come ${nextRole === 'admin' ? 'AMMINISTRATORE' : 'OPERAIO'}?`)) return;
+
+      const updated = { ...target, role: nextRole };
+      if (isCloud) {
+        await setDoc(doc(db, "users", uid), updated);
+      } else {
+        const idx = users.findIndex(u => u.id === uid);
+        users[idx] = updated;
+        saveLocalData();
+        renderAll();
+      }
+    };
+
+    window.deleteUser = async function(uid) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (uid === currentUser.id) return alert("Non puoi eliminare il tuo account mentre sei collegato.");
+      if (!confirm("Eliminare definitivamente questo account?")) return;
+      if (isCloud) {
+        await deleteDoc(doc(db, "users", uid));
+      } else {
+        users = users.filter(u => u.id !== uid);
+        saveLocalData();
+        renderAll();
+      }
+    };
+
+    function renderAdminUsers() {
+      const list = document.getElementById("admin-users-list");
+      if (!list) return;
+      const validUsers = users.filter(u => u.passHash);
+      if (validUsers.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 py-2">Nessun account registrato.</p>`;
+        return;
+      }
+      list.innerHTML = validUsers.map(u => {
+        const isAdm = u.role === "admin";
+        return `
+          <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
+            <div>
+              <span class="font-bold text-slate-900">${u.name}</span>
+              <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${isAdm ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
+                ${isAdm ? 'Admin' : 'Operaio'}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              ${currentUser && u.id !== currentUser.id ? `
+                <button onclick="toggleUserRole('${u.id}')" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-bold text-[11px]">
+                  ${isAdm ? 'Rendi Operaio' : 'Promuovi Admin'}
+                </button>
+                <button onclick="deleteUser('${u.id}')" class="text-rose-500 hover:underline font-bold">Elimina</button>
+              ` : `<span class="text-[11px] text-slate-400 italic">Tu</span>`}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     window.addNewTool = async function() {
       if (!currentUser || currentUser.role !== "admin") return;
       const name = document.getElementById("new-tool-name").value.trim();
@@ -1029,57 +1110,6 @@
       }
       closeActionModal();
     };
-
-    window.addNewUser = async function() {
-      if (!currentUser || currentUser.role !== "admin") return;
-      const name = document.getElementById("new-user-name").value.trim();
-      const pin = document.getElementById("new-user-pin").value.trim();
-      const role = document.getElementById("new-user-role").value;
-      if (!name || pin.length !== 4 || isNaN(pin)) {
-        return alert("Inserisci un nome e un PIN numerico di 4 cifre.");
-      }
-      const id = "u_" + Date.now();
-      const newUser = { id, name, pin, role };
-      if (isCloud) {
-        await setDoc(doc(db, "users", id), newUser);
-      } else {
-        users.push(newUser);
-        saveLocalData();
-        renderAll();
-      }
-      document.getElementById("new-user-name").value = "";
-      document.getElementById("new-user-pin").value = "";
-    };
-
-    window.deleteUser = async function(uid) {
-      if (!currentUser || currentUser.role !== "admin") return;
-      if (uid === currentUser.id) return alert("Non puoi eliminare il tuo stesso account mentre sei collegato.");
-      if (!confirm("Rimuovere questo utente?")) return;
-      if (isCloud) {
-        await deleteDoc(doc(db, "users", uid));
-      } else {
-        users = users.filter(u => u.id !== uid);
-        saveLocalData();
-        renderAll();
-      }
-    };
-
-    function renderAdminUsers() {
-      const list = document.getElementById("admin-users-list");
-      if (!list) return;
-      list.innerHTML = users.map(u => `
-        <div class="py-2.5 flex items-center justify-between text-xs">
-          <div>
-            <span class="font-bold text-slate-900">${u.name}</span>
-            <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
-              ${u.role === 'admin' ? 'Admin' : 'Operaio'}
-            </span>
-            <span class="ml-2 font-mono text-slate-400">PIN: ${u.pin}</span>
-          </div>
-          <button onclick="deleteUser('${u.id}')" class="text-rose-500 hover:underline font-bold">Rimuovi</button>
-        </div>
-      `).join("");
-    }
 
     // QR CODE SINGOLO & STAMPA MULTIPLA A4
     window.showSingleQR = function(toolId) {
