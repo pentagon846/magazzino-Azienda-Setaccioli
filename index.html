@@ -305,4 +305,971 @@
     <div id="bottom-nav-grid" class="max-w-2xl mx-auto grid grid-cols-4 items-center h-16 px-1">
       <button onclick="switchTab('warehouse')" id="nav-warehouse" class="nav-btn flex flex-col items-center justify-center text-amber-600 font-bold">
         <i data-lucide="package" class="w-5 h-5"></i>
-        <span class="text-[10px] mt-1">Magazzino
+        <span class="text-[10px] mt-1">Magazzino</span>
+      </button>
+
+      <button onclick="switchTab('people')" id="nav-people" class="nav-btn flex flex-col items-center justify-center text-slate-400 font-medium">
+        <i data-lucide="users" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-1">Chi ha cosa</span>
+      </button>
+
+      <!-- Tasto Centrale Scanner QR -->
+      <div class="flex justify-center -mt-6">
+        <button onclick="openScannerModal()" class="w-14 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-lg shadow-amber-500/30 flex flex-col items-center justify-center border-4 border-white active:scale-95 transition">
+          <i data-lucide="scan-line" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <button onclick="switchTab('history')" id="nav-history" class="nav-btn flex flex-col items-center justify-center text-slate-400 font-medium">
+        <i data-lucide="history" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-1">Storico</span>
+      </button>
+
+      <!-- Tab Admin (visibile SOLO se role === 'admin') -->
+      <button onclick="switchTab('admin')" id="nav-admin" class="nav-btn hidden flex flex-col items-center justify-center text-slate-400 font-medium">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        <span class="text-[10px] mt-1">Admin</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODALE PRELIEVO / RICONSEGNA / DETTAGLIO -->
+  <div id="action-modal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <span id="modal-tool-code" class="text-xs font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded"></span>
+          <h3 id="modal-tool-name" class="text-lg font-extrabold text-slate-900 mt-1"></h3>
+          <p id="modal-tool-cat" class="text-xs text-slate-500"></p>
+        </div>
+        <button onclick="closeActionModal()" class="p-2 rounded-full bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="modal-body" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- MODALE SCANNER QR -->
+  <div id="scanner-modal" class="fixed inset-0 z-50 hidden bg-slate-950/90 flex flex-col justify-between p-4 text-white">
+    <div class="max-w-md w-full mx-auto flex items-center justify-between pt-2">
+      <h3 class="font-bold text-base flex items-center gap-2">
+        <i data-lucide="qr-code" class="w-5 h-5 text-amber-400"></i>
+        Inquadra QR Attrezzo
+      </h3>
+      <button onclick="closeScannerModal()" class="p-2 rounded-full bg-slate-800 text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div class="max-w-md w-full mx-auto my-auto space-y-4">
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden bg-black border-2 border-amber-500"></div>
+      <p id="scanner-msg" class="text-center text-xs text-slate-300">Punta la fotocamera sull'etichetta fisica dell'attrezzo.</p>
+      
+      <!-- Simulazione visibile SOLO agli Admin per test -->
+      <div id="scanner-sim-wrapper" class="hidden bg-slate-900 border border-slate-800 p-3 rounded-2xl">
+        <p class="text-[11px] text-slate-400 mb-2 font-semibold">Test rapido Admin senza fotocamera:</p>
+        <div id="scanner-sim-buttons" class="flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+
+    <div class="h-4"></div>
+  </div>
+
+  <!-- MODALE SINGOLO QR CODE (SOLO ADMIN) -->
+  <div id="single-qr-modal" class="fixed inset-0 z-50 hidden bg-slate-950/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+      <span class="inline-block text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">Etichetta Admin</span>
+      <h3 id="sqr-title" class="font-extrabold text-base text-slate-900"></h3>
+      <div id="sqr-container" class="flex justify-center p-3 bg-white border-2 border-slate-200 rounded-2xl"></div>
+      <p id="sqr-code" class="font-mono text-sm font-bold text-slate-600"></p>
+      <div class="flex gap-2">
+        <button onclick="closeSingleQR()" class="flex-1 py-2.5 rounded-xl bg-slate-100 font-bold text-xs text-slate-700">Chiudi</button>
+        <button onclick="printSingleQR()" class="flex-1 py-2.5 rounded-xl bg-amber-500 font-bold text-xs text-slate-950">Stampa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AREA DI STAMPA NASCOSTA -->
+  <div id="print-area" class="hidden"></div>
+
+  <!-- FIREBASE SDK & LOGICA APPLICATIVA -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    let db = null;
+    let auth = null;
+    let isCloud = false;
+
+    let users = [];
+    let tools = [];
+    let logs = [];
+    let currentUser = null;
+    let currentFilter = "all";
+    let html5QrCode = null;
+    let selectedQRIds = new Set();
+
+    const DEFAULT_TOOLS = [
+      { id: "ATT-001", code: "ATT-001", name: "Pinza Amperometrica Fluke 376", category: "Strumenti di Misura", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
+      { id: "ATT-002", code: "ATT-002", name: "Tassellatore Hilti TE 6-A22", category: "Elettroutensili", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
+      { id: "ATT-003", code: "ATT-003", name: "Valigia Crimpatrici MC4 + Spelafili", category: "Valigette & Kit", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
+      { id: "ATT-004", code: "ATT-004", name: "Analizzatore Rete / Trifase", category: "Strumenti di Misura", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" },
+      { id: "ATT-005", code: "ATT-005", name: "Imbracatura Anticaduta + Cordino", category: "Sicurezza & DPI", status: "available", holderId: null, holderName: null, locationNote: "", takenAt: null, issueNote: "" }
+    ];
+
+    async function hashPassword(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function initApp() {
+      lucide.createIcons();
+      try {
+        if (MANUAL_FIREBASE_CONFIG && MANUAL_FIREBASE_CONFIG.apiKey) {
+          const app = initializeApp(MANUAL_FIREBASE_CONFIG);
+          auth = getAuth(app);
+          db = getFirestore(app);
+          await signInAnonymously(auth);
+          isCloud = true;
+          updateConnectionBadges(true);
+          startRealtimeListeners();
+        } else {
+          throw new Error("Configurazione mancante");
+        }
+      } catch (e) {
+        console.warn("Avvio in modalità locale:", e);
+        isCloud = false;
+        updateConnectionBadges(false);
+        loadLocalData();
+      }
+    }
+
+    function updateConnectionBadges(connected) {
+      const b1 = document.getElementById("conn-badge-login");
+      const b2 = document.getElementById("cloud-status-badge");
+      if (connected) {
+        b1.textContent = "Cloud Attivo";
+        b1.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        b2.textContent = "Cloud Sync";
+        b2.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      } else {
+        b1.textContent = "Modalità Locale";
+        b1.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        b2.textContent = "Locale";
+        b2.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      }
+    }
+
+    function startRealtimeListeners() {
+      onSnapshot(collection(db, "users"), (snap) => {
+        users = snap.docs.map(d => ({ id: d.id, role: "worker", ...d.data() }));
+        if (currentUser) {
+          const fresh = users.find(u => u.id === currentUser.id);
+          if (!fresh) {
+            logoutUser();
+            return;
+          }
+          if (fresh.role !== currentUser.role) {
+            currentUser = fresh;
+            applyRoleUI(currentUser);
+            renderAll();
+          }
+        }
+        renderAdminUsers();
+        renderPeople();
+      });
+
+      onSnapshot(collection(db, "tools"), (snap) => {
+        if (snap.empty) {
+          seedDefaultTools(false);
+          return;
+        }
+        tools = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        tools.sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+        renderWarehouse();
+        renderPeople();
+        renderQRSelectList();
+      });
+
+      onSnapshot(collection(db, "logs"), (snap) => {
+        logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        logs.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        renderHistory();
+      });
+    }
+
+    function loadLocalData() {
+      users = JSON.parse(localStorage.getItem("mag_users_v2") || "[]");
+      tools = JSON.parse(localStorage.getItem("mag_tools_v2") || "null") || DEFAULT_TOOLS;
+      logs = JSON.parse(localStorage.getItem("mag_logs_v2") || "[]");
+      saveLocalData();
+      renderAll();
+    }
+
+    function saveLocalData() {
+      if (!isCloud) {
+        localStorage.setItem("mag_users_v2", JSON.stringify(users));
+        localStorage.setItem("mag_tools_v2", JSON.stringify(tools));
+        localStorage.setItem("mag_logs_v2", JSON.stringify(logs));
+      }
+    }
+
+    window.seedDefaultTools = async function(askConfirm = true) {
+      if (askConfirm && !confirm("Vuoi caricare i 5 attrezzi base di esempio?")) return;
+      if (isCloud) {
+        for (const t of DEFAULT_TOOLS) {
+          await setDoc(doc(db, "tools", t.id), t);
+        }
+      } else {
+        tools = [...DEFAULT_TOOLS];
+        saveLocalData();
+        renderAll();
+      }
+    };
+
+    // SWITCH ACCEDI / CREA ACCOUNT
+    window.switchAuthMode = function(mode) {
+      const isLogin = mode === "login";
+      document.getElementById("form-login").classList.toggle("hidden", !isLogin);
+      document.getElementById("form-register").classList.toggle("hidden", isLogin);
+      document.getElementById("login-error").textContent = "";
+      document.getElementById("reg-error").textContent = "";
+
+      document.getElementById("tab-btn-login").className = isLogin
+        ? "py-2.5 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 transition"
+        : "py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition";
+      document.getElementById("tab-btn-register").className = !isLogin
+        ? "py-2.5 rounded-xl text-xs font-extrabold bg-emerald-500 text-slate-950 transition"
+        : "py-2.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white transition";
+    };
+
+    // REGISTRAZIONE AUTONOMA
+    window.handleRegisterSubmit = async function(e) {
+      e.preventDefault();
+      const rawName = document.getElementById("reg-name").value.trim();
+      const pass = document.getElementById("reg-pass").value;
+      const adminSecret = document.getElementById("reg-admin-code").value.trim();
+      const errEl = document.getElementById("reg-error");
+      errEl.textContent = "";
+
+      if (rawName.length < 2) {
+        errEl.textContent = "Inserisci un nome valido.";
+        return;
+      }
+
+      const exists = users.find(u => (u.name || "").toLowerCase() === rawName.toLowerCase());
+      if (exists) {
+        errEl.textContent = "Questo nome esiste già. Usa 'Accedi' oppure aggiungi il cognome.";
+        return;
+      }
+
+      if (adminSecret && adminSecret !== ADMIN_MASTER_SECRET) {
+        errEl.textContent = "Codice Direzione non valido. Lascialo vuoto se sei un operaio.";
+        return;
+      }
+
+      const assignedRole = (adminSecret === ADMIN_MASTER_SECRET) ? "admin" : "worker";
+      const passHash = await hashPassword(pass);
+      const id = "usr_" + Date.now();
+
+      const newUser = {
+        id,
+        name: rawName,
+        passHash,
+        role: assignedRole,
+        createdAt: formatNow()
+      };
+
+      if (isCloud) {
+        await setDoc(doc(db, "users", id), newUser);
+      } else {
+        users.push(newUser);
+        saveLocalData();
+      }
+
+      document.getElementById("form-register").reset();
+      completeLogin(newUser);
+    };
+
+    // LOGIN CON NOME E PASSWORD
+    window.handleLoginSubmit = async function(e) {
+      e.preventDefault();
+      const rawName = document.getElementById("login-name").value.trim();
+      const pass = document.getElementById("login-pass").value;
+      const errEl = document.getElementById("login-error");
+      errEl.textContent = "";
+
+      const found = users.find(u => (u.name || "").toLowerCase() === rawName.toLowerCase());
+      if (!found || !found.passHash) {
+        errEl.textContent = "Account non trovato. Se è la prima volta, clicca su 'Crea Account'.";
+        return;
+      }
+
+      const passHash = await hashPassword(pass);
+      if (passHash !== found.passHash) {
+        errEl.textContent = "Password errata. Riprova.";
+        return;
+      }
+
+      document.getElementById("form-login").reset();
+      completeLogin(found);
+    };
+
+    function applyRoleUI(user) {
+      document.getElementById("header-user-name").textContent = user.name;
+      const isAdm = user.role === "admin";
+      const hBadge = document.getElementById("header-role-badge");
+      hBadge.textContent = isAdm ? "ADMIN" : "OPERAIO";
+      hBadge.className = isAdm
+        ? "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-slate-950"
+        : "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-200";
+
+      const navAdmin = document.getElementById("nav-admin");
+      const navGrid = document.getElementById("bottom-nav-grid");
+      const btnCsv = document.getElementById("btn-export-csv-history");
+
+      if (isAdm) {
+        navAdmin.classList.remove("hidden");
+        navGrid.classList.remove("grid-cols-4");
+        navGrid.classList.add("grid-cols-5");
+        btnCsv.classList.remove("hidden");
+      } else {
+        navAdmin.classList.add("hidden");
+        navGrid.classList.remove("grid-cols-5");
+        navGrid.classList.add("grid-cols-4");
+        btnCsv.classList.add("hidden");
+      }
+    }
+
+    function completeLogin(user) {
+      currentUser = user;
+      document.getElementById("login-screen").classList.add("hidden");
+      applyRoleUI(user);
+      switchTab("warehouse");
+      renderAll();
+    }
+
+    window.logoutUser = function() {
+      currentUser = null;
+      document.getElementById("login-screen").classList.remove("hidden");
+      switchAuthMode("login");
+    };
+
+    // NAVIGAZIONE TAB
+    window.switchTab = function(tabName) {
+      if (tabName === "admin" && (!currentUser || currentUser.role !== "admin")) {
+        alert("Accesso riservato agli amministratori.");
+        return;
+      }
+      ["warehouse", "people", "history", "admin"].forEach(t => {
+        document.getElementById("tab-" + t).classList.toggle("hidden", t !== tabName);
+        const nav = document.getElementById("nav-" + t);
+        if (nav) {
+          nav.classList.toggle("text-amber-600", t === tabName);
+          nav.classList.toggle("font-bold", t === tabName);
+          nav.classList.toggle("text-slate-400", t !== tabName);
+        }
+      });
+    };
+
+    window.setFilter = function(f) {
+      currentFilter = f;
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.className = "filter-btn px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 whitespace-nowrap";
+      });
+      const active = document.getElementById("filter-" + f);
+      if (active) {
+        active.className = "filter-btn px-3.5 py-1.5 rounded-full text-xs font-bold bg-slate-900 text-white whitespace-nowrap";
+      }
+      renderWarehouse();
+    };
+
+    function renderAll() {
+      renderWarehouse();
+      renderPeople();
+      renderHistory();
+      renderAdminUsers();
+      renderQRSelectList();
+      lucide.createIcons();
+    }
+
+    // RENDER MAGAZZINO (PULSANTE QR VISIBILE SOLO AGLI ADMIN)
+    window.renderWarehouse = function() {
+      const q = (document.getElementById("search-input").value || "").toLowerCase();
+      document.getElementById("stat-total").textContent = tools.length;
+      document.getElementById("stat-available").textContent = tools.filter(t => t.status === "available").length;
+      document.getElementById("stat-out").textContent = tools.filter(t => t.status === "out").length;
+
+      const filtered = tools.filter(t => {
+        const matchText = (t.name || "").toLowerCase().includes(q) ||
+                          (t.code || "").toLowerCase().includes(q) ||
+                          (t.holderName || "").toLowerCase().includes(q);
+        if (!matchText) return false;
+        if (currentFilter === "available") return t.status === "available";
+        if (currentFilter === "out") return t.status === "out";
+        if (currentFilter === "mine") return currentUser && t.holderId === currentUser.id;
+        if (currentFilter === "broken") return t.status === "broken";
+        return true;
+      });
+
+      const list = document.getElementById("tools-list");
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-400">Nessun attrezzo trovato.</div>`;
+        return;
+      }
+
+      const isAdm = currentUser && currentUser.role === "admin";
+
+      list.innerHTML = filtered.map(t => {
+        const isMine = currentUser && t.holderId === currentUser.id;
+        let statusBadge = "";
+        let actionBtn = "";
+
+        if (t.status === "available") {
+          statusBadge = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">In Sede</span>`;
+          actionBtn = `<button onclick="openToolModal('${t.id}')" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold active:scale-95">Prendi</button>`;
+        } else if (t.status === "out") {
+          statusBadge = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">Fuori • ${t.holderName}</span>`;
+          if (isMine || isAdm) {
+            actionBtn = `<button onclick="openToolModal('${t.id}')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold active:scale-95">${isMine ? 'Restituisci' : 'Gestisci'}</button>`;
+          } else {
+            actionBtn = `<button onclick="openToolModal('${t.id}')" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold">Dettagli</button>`;
+          }
+        } else {
+          statusBadge = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700">Guasto / Manut.</span>`;
+          actionBtn = `<button onclick="openToolModal('${t.id}')" class="px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">Vedi</button>`;
+        }
+
+        // Il tasto per visualizzare/stampare il QR compare SOLO se isAdm === true
+        const qrButtonHTML = isAdm
+          ? `<button onclick="showSingleQR('${t.id}')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600" title="Mostra/Stampa QR (Admin)">
+               <i data-lucide="qr-code" class="w-4 h-4"></i>
+             </button>`
+          : "";
+
+        return `
+          <div class="bg-white p-4 rounded-2xl border ${isMine ? 'border-amber-400 ring-1 ring-amber-400/30' : 'border-slate-200'} shadow-sm flex items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${t.code}</span>
+                ${statusBadge}
+              </div>
+              <h3 class="font-bold text-sm text-slate-900 mt-1 truncate">${t.name}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                ${t.status === 'out' ? `Preso: ${t.takenAt || ''} ${t.locationNote ? '• ' + t.locationNote : ''}` : (t.status === 'broken' ? (t.issueNote || 'Segnalato guasto') : t.category)}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${qrButtonHTML}
+              ${actionBtn}
+            </div>
+          </div>
+        `;
+      }).join("");
+      lucide.createIcons();
+    };
+
+    // MODALE AZIONE ATTREZZO
+    window.openToolModal = function(toolId) {
+      const t = tools.find(x => x.id === toolId);
+      if (!t || !currentUser) return;
+
+      const isAdm = currentUser.role === "admin";
+      const isMine = t.holderId === currentUser.id;
+
+      document.getElementById("modal-tool-code").textContent = t.code;
+      document.getElementById("modal-tool-name").textContent = t.name;
+      document.getElementById("modal-tool-cat").textContent = t.category;
+
+      const body = document.getElementById("modal-body");
+
+      if (t.status === "available") {
+        body.innerHTML = `
+          <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-800 font-medium">
+            Disponibile in magazzino. Verrà registrato a nome di <strong>${currentUser.name}</strong>.
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Destinazione / Furgone (opzionale)</label>
+            <input id="take-note-input" type="text" placeholder="Es. Furgone 1, Impianto Viterbo..." class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" />
+          </div>
+          <button onclick="confirmTakeTool('${t.id}')" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm">
+            Conferma Prelievo
+          </button>
+          <div class="pt-2 border-t border-slate-100">
+            <button onclick="promptReportIssue('${t.id}')" class="w-full py-2 text-xs font-bold text-rose-600 hover:underline">
+              Segnala guasto o batteria scarica
+            </button>
+          </div>
+        `;
+      } else if (t.status === "out") {
+        if (isMine || isAdm) {
+          body.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 space-y-1">
+              <p>Attualmente in carico a: <strong>${t.holderName}</strong></p>
+              <p>Orario prelievo: <strong>${t.takenAt || 'N/D'}</strong> ${t.locationNote ? '(' + t.locationNote + ')' : ''}</p>
+            </div>
+            <button onclick="confirmReturnTool('${t.id}')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm">
+              ${isMine ? 'Restituisci in Magazzino' : 'Forza Riconsegna in Magazzino (Admin)'}
+            </button>
+            <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
+              <button onclick="promptReportIssue('${t.id}')" class="text-xs font-bold text-rose-600 hover:underline">
+                Segnala guasto
+              </button>
+              ${isAdm ? `<button onclick="deleteTool('${t.id}')" class="text-xs font-bold text-slate-400 hover:text-rose-600">Elimina attrezzo</button>` : ''}
+            </div>
+          `;
+        } else {
+          body.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl text-xs text-amber-900 space-y-1">
+              <p class="font-bold text-sm">Attrezzo in uso da ${t.holderName}</p>
+              <p>Preso: ${t.takenAt || 'N/D'} ${t.locationNote ? '• ' + t.locationNote : ''}</p>
+              <p class="text-[11px] text-amber-700 pt-1">Solo ${t.holderName} o un Amministratore possono registrare la riconsegna.</p>
+            </div>
+            <button onclick="closeActionModal()" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">Chiudi</button>
+          `;
+        }
+      } else {
+        body.innerHTML = `
+          <div class="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-xs text-rose-900 space-y-1">
+            <p class="font-bold text-sm">Attrezzo fermo per manutenzione</p>
+            <p>Motivo: ${t.issueNote || 'Nessun dettaglio'}</p>
+          </div>
+          ${isAdm ? `
+            <button onclick="confirmRepairTool('${t.id}')" class="w-full py-3 rounded-xl bg-emerald-600 text-white font-extrabold text-sm">
+              Segna come Riparato & Disponibile
+            </button>
+            <button onclick="deleteTool('${t.id}')" class="w-full py-2 text-xs font-bold text-rose-600">Elimina attrezzo</button>
+          ` : `
+            <p class="text-xs text-slate-500 text-center">In attesa di ripristino da parte dell'amministratore.</p>
+          `}
+        `;
+      }
+
+      document.getElementById("action-modal").classList.remove("hidden");
+    };
+
+    window.closeActionModal = function() {
+      document.getElementById("action-modal").classList.add("hidden");
+    };
+
+    function formatNow() {
+      const d = new Date();
+      return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }) + " " +
+             d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    window.confirmTakeTool = async function(toolId) {
+      const t = tools.find(x => x.id === toolId);
+      const note = document.getElementById("take-note-input").value.trim();
+      const now = formatNow();
+      const updated = {
+        ...t,
+        status: "out",
+        holderId: currentUser.id,
+        holderName: currentUser.name,
+        locationNote: note,
+        takenAt: now
+      };
+      await saveToolAndLog(updated, "PRELIEVO", `${currentUser.name} ha preso ${t.name}${note ? ' (' + note + ')' : ''}`);
+      closeActionModal();
+    };
+
+    window.confirmReturnTool = async function(toolId) {
+      const t = tools.find(x => x.id === toolId);
+      const prevHolder = t.holderName;
+      const updated = {
+        ...t,
+        status: "available",
+        holderId: null,
+        holderName: null,
+        locationNote: "",
+        takenAt: null
+      };
+      const logMsg = currentUser.name === prevHolder
+        ? `${currentUser.name} ha restituito ${t.name}`
+        : `${currentUser.name} (Admin) ha registrato il rientro di ${t.name} (era di ${prevHolder})`;
+      await saveToolAndLog(updated, "RICONSEGNA", logMsg);
+      closeActionModal();
+    };
+
+    window.promptReportIssue = async function(toolId) {
+      const reason = prompt("Descrivi brevemente il problema (es. Mandrino rotto, cavo tagliato):");
+      if (!reason) return;
+      const t = tools.find(x => x.id === toolId);
+      const updated = {
+        ...t,
+        status: "broken",
+        holderId: null,
+        holderName: null,
+        issueNote: reason
+      };
+      await saveToolAndLog(updated, "GUASTO", `${currentUser.name} ha segnalato guasto su ${t.name}: ${reason}`);
+      closeActionModal();
+    };
+
+    window.confirmRepairTool = async function(toolId) {
+      const t = tools.find(x => x.id === toolId);
+      const updated = { ...t, status: "available", issueNote: "" };
+      await saveToolAndLog(updated, "RIPRISTINO", `${currentUser.name} ha rimesso in servizio ${t.name}`);
+      closeActionModal();
+    };
+
+    async function saveToolAndLog(toolObj, actionType, message) {
+      const logEntry = {
+        ts: Date.now(),
+        timeStr: formatNow(),
+        action: actionType,
+        user: currentUser.name,
+        toolCode: toolObj.code,
+        toolName: toolObj.name,
+        message
+      };
+      if (isCloud) {
+        await setDoc(doc(db, "tools", toolObj.id), toolObj);
+        await addDoc(collection(db, "logs"), logEntry);
+      } else {
+        const idx = tools.findIndex(x => x.id === toolObj.id);
+        if (idx >= 0) tools[idx] = toolObj;
+        logs.unshift(logEntry);
+        saveLocalData();
+        renderAll();
+      }
+    }
+
+    // CHI HA COSA
+    function renderPeople() {
+      const container = document.getElementById("people-list");
+      const validUsers = users.filter(u => u.passHash);
+      if (validUsers.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">Nessun account registrato al momento.</div>`;
+        return;
+      }
+      container.innerHTML = validUsers.map(u => {
+        const userTools = tools.filter(t => t.status === "out" && t.holderId === u.id);
+        const isAdm = u.role === "admin";
+        return `
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full ${isAdm ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'} flex items-center justify-center font-bold text-xs">
+                  ${u.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 class="font-bold text-sm text-slate-900">${u.name}</h3>
+                  <span class="text-[10px] font-bold uppercase text-slate-400">${isAdm ? 'Amministratore' : 'Operaio'}</span>
+                </div>
+              </div>
+              <span class="text-xs font-extrabold px-2.5 py-1 rounded-full ${userTools.length > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}">
+                ${userTools.length} attrezzi
+              </span>
+            </div>
+            ${userTools.length > 0 ? `
+              <div class="divide-y divide-slate-100 pt-1">
+                ${userTools.map(ut => `
+                  <div onclick="openToolModal('${ut.id}')" class="py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 rounded px-1">
+                    <div>
+                      <span class="font-mono font-bold text-slate-500 mr-1">${ut.code}</span>
+                      <span class="font-semibold text-slate-800">${ut.name}</span>
+                    </div>
+                    <span class="text-slate-400">${ut.takenAt || ''}</span>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<p class="text-xs text-slate-400 italic">Nessun attrezzo in carico.</p>`}
+          </div>
+        `;
+      }).join("");
+    }
+
+    // STORICO
+    function renderHistory() {
+      const container = document.getElementById("history-list");
+      if (logs.length === 0) {
+        container.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">Nessun movimento registrato.</div>`;
+        return;
+      }
+      container.innerHTML = logs.slice(0, 80).map(l => {
+        const badgeColor = l.action === "PRELIEVO" ? "bg-amber-100 text-amber-800"
+          : l.action === "RICONSEGNA" ? "bg-emerald-100 text-emerald-700"
+          : "bg-rose-100 text-rose-700";
+        return `
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between gap-2">
+            <div>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded ${badgeColor}">${l.action}</span>
+              <p class="text-xs font-semibold text-slate-800 mt-1">${l.message}</p>
+            </div>
+            <span class="text-[11px] text-slate-400 whitespace-nowrap">${l.timeStr || ''}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // FUNZIONI ADMIN (PROMOZIONE RUOLI & GESTIONE)
+    window.toggleUserRole = async function(uid) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (uid === currentUser.id) return alert("Non puoi declassare te stesso.");
+      const target = users.find(u => u.id === uid);
+      if (!target) return;
+      const nextRole = target.role === "admin" ? "worker" : "admin";
+      if (!confirm(`Vuoi impostare ${target.name} come ${nextRole === 'admin' ? 'AMMINISTRATORE' : 'OPERAIO'}?`)) return;
+
+      const updated = { ...target, role: nextRole };
+      if (isCloud) {
+        await setDoc(doc(db, "users", uid), updated);
+      } else {
+        const idx = users.findIndex(u => u.id === uid);
+        users[idx] = updated;
+        saveLocalData();
+        renderAll();
+      }
+    };
+
+    window.deleteUser = async function(uid) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (uid === currentUser.id) return alert("Non puoi eliminare il tuo account mentre sei collegato.");
+      if (!confirm("Eliminare definitivamente questo account?")) return;
+      if (isCloud) {
+        await deleteDoc(doc(db, "users", uid));
+      } else {
+        users = users.filter(u => u.id !== uid);
+        saveLocalData();
+        renderAll();
+      }
+    };
+
+    function renderAdminUsers() {
+      const list = document.getElementById("admin-users-list");
+      if (!list) return;
+      const validUsers = users.filter(u => u.passHash);
+      if (validUsers.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 py-2">Nessun account registrato.</p>`;
+        return;
+      }
+      list.innerHTML = validUsers.map(u => {
+        const isAdm = u.role === "admin";
+        return `
+          <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
+            <div>
+              <span class="font-bold text-slate-900">${u.name}</span>
+              <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${isAdm ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
+                ${isAdm ? 'Admin' : 'Operaio'}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              ${currentUser && u.id !== currentUser.id ? `
+                <button onclick="toggleUserRole('${u.id}')" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-bold text-[11px]">
+                  ${isAdm ? 'Rendi Operaio' : 'Promuovi Admin'}
+                </button>
+                <button onclick="deleteUser('${u.id}')" class="text-rose-500 hover:underline font-bold">Elimina</button>
+              ` : `<span class="text-[11px] text-slate-400 italic">Tu</span>`}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    window.addNewTool = async function() {
+      if (!currentUser || currentUser.role !== "admin") return;
+      const name = document.getElementById("new-tool-name").value.trim();
+      let code = document.getElementById("new-tool-code").value.trim().toUpperCase();
+      const category = document.getElementById("new-tool-cat").value;
+      if (!name) return alert("Inserisci il nome dell'attrezzo.");
+      if (!code) code = "ATT-" + String(tools.length + 1).padStart(3, "0");
+
+      const newTool = {
+        id: code,
+        code,
+        name,
+        category,
+        status: "available",
+        holderId: null,
+        holderName: null,
+        locationNote: "",
+        takenAt: null,
+        issueNote: ""
+      };
+
+      if (isCloud) {
+        await setDoc(doc(db, "tools", code), newTool);
+      } else {
+        tools.push(newTool);
+        saveLocalData();
+        renderAll();
+      }
+      document.getElementById("new-tool-name").value = "";
+      document.getElementById("new-tool-code").value = "";
+      alert("Attrezzo aggiunto!");
+    };
+
+    window.deleteTool = async function(toolId) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      if (!confirm("Eliminare definitivamente questo attrezzo?")) return;
+      if (isCloud) {
+        await deleteDoc(doc(db, "tools", toolId));
+      } else {
+        tools = tools.filter(t => t.id !== toolId);
+        saveLocalData();
+        renderAll();
+      }
+      closeActionModal();
+    };
+
+    // QR CODE SINGOLO & STAMPA MULTIPLA A4 (BLOCCATI PER OPERAI)
+    window.showSingleQR = function(toolId) {
+      if (!currentUser || currentUser.role !== "admin") return;
+      const t = tools.find(x => x.id === toolId);
+      if (!t) return;
+      document.getElementById("sqr-title").textContent = t.name;
+      document.getElementById("sqr-code").textContent = t.code;
+      const box = document.getElementById("sqr-container");
+      box.innerHTML = "";
+      new QRCode(box, { text: t.code, width: 160, height: 160 });
+      document.getElementById("single-qr-modal").classList.remove("hidden");
+    };
+
+    window.closeSingleQR = function() {
+      document.getElementById("single-qr-modal").classList.add("hidden");
+    };
+
+    window.printSingleQR = function() {
+      if (!currentUser || currentUser.role !== "admin") return;
+      const title = document.getElementById("sqr-title").textContent;
+      const code = document.getElementById("sqr-code").textContent;
+      const printArea = document.getElementById("print-area");
+      printArea.innerHTML = `
+        <div style="border:2px solid #000; padding:16px; width:220px; text-align:center; font-family:sans-serif;">
+          <div id="print-single-qr" style="display:flex; justify-content:center;"></div>
+          <div style="font-weight:900; font-size:16px; margin-top:8px;">${code}</div>
+          <div style="font-size:12px; margin-top:4px;">${title}</div>
+        </div>
+      `;
+      new QRCode(document.getElementById("print-single-qr"), { text: code, width: 140, height: 140 });
+      printArea.classList.remove("hidden");
+      setTimeout(() => {
+        window.print();
+        printArea.classList.add("hidden");
+      }, 250);
+    };
+
+    function renderQRSelectList() {
+      const list = document.getElementById("qr-select-list");
+      if (!list) return;
+      list.innerHTML = tools.map(t => `
+        <label class="flex items-center gap-2.5 py-1.5 px-1 text-xs cursor-pointer">
+          <input type="checkbox" onchange="toggleQRCheck('${t.id}')" ${selectedQRIds.has(t.id) ? 'checked' : ''} class="rounded text-amber-500" />
+          <span class="font-mono font-bold text-slate-500">${t.code}</span>
+          <span class="font-medium text-slate-800 truncate">${t.name}</span>
+        </label>
+      `).join("");
+    }
+
+    window.toggleQRCheck = function(id) {
+      if (selectedQRIds.has(id)) selectedQRIds.delete(id);
+      else selectedQRIds.add(id);
+    };
+
+    window.toggleSelectAllQR = function() {
+      if (selectedQRIds.size === tools.length) selectedQRIds.clear();
+      else tools.forEach(t => selectedQRIds.add(t.id));
+      renderQRSelectList();
+    };
+
+    window.printSelectedQRs = function() {
+      if (!currentUser || currentUser.role !== "admin") return;
+      const chosen = tools.filter(t => selectedQRIds.has(t.id));
+      if (chosen.length === 0) return alert("Seleziona almeno un attrezzo da stampare.");
+      const printArea = document.getElementById("print-area");
+      printArea.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; font-family:sans-serif;">
+          ${chosen.map(t => `
+            <div style="border:1.5px solid #000; border-radius:8px; padding:12px; text-align:center; page-break-inside:avoid;">
+              <div id="pqr-${t.id}" style="display:flex; justify-content:center;"></div>
+              <div style="font-weight:900; font-size:14px; margin-top:6px;">${t.code}</div>
+              <div style="font-size:11px; margin-top:2px;">${t.name}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+      chosen.forEach(t => {
+        new QRCode(document.getElementById("pqr-" + t.id), { text: t.code, width: 110, height: 110 });
+      });
+      printArea.classList.remove("hidden");
+      setTimeout(() => {
+        window.print();
+        printArea.classList.add("hidden");
+      }, 350);
+    };
+
+    // SCANNER FOTOCAMERA (SOLO LETTURA FISICA PER OPERAI)
+    window.openScannerModal = function() {
+      document.getElementById("scanner-modal").classList.remove("hidden");
+      const isAdm = currentUser && currentUser.role === "admin";
+      const simWrapper = document.getElementById("scanner-sim-wrapper");
+      if (isAdm) {
+        simWrapper.classList.remove("hidden");
+        const simBox = document.getElementById("scanner-sim-buttons");
+        simBox.innerHTML = tools.slice(0, 6).map(t => `
+          <button onclick="handleScannedCode('${t.code}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-amber-400">
+            ${t.code}
+          </button>
+        `).join("");
+      } else {
+        simWrapper.classList.add("hidden");
+      }
+
+      try {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => handleScannedCode(decodedText),
+          () => {}
+        ).catch(() => {
+          document.getElementById("scanner-msg").textContent = "Fotocamera non attiva: consenti l'accesso alla fotocamera dal browser per scansionare l'etichetta.";
+        });
+      } catch (e) {}
+    };
+
+    window.closeScannerModal = async function() {
+      if (html5QrCode) {
+        try { await html5QrCode.stop(); } catch (e) {}
+        html5QrCode = null;
+      }
+      document.getElementById("scanner-modal").classList.add("hidden");
+    };
+
+    window.handleScannedCode = async function(rawCode) {
+      const code = (rawCode || "").trim().toUpperCase();
+      const found = tools.find(t => t.code.toUpperCase() === code || t.id.toUpperCase() === code);
+      await closeScannerModal();
+      if (found) {
+        openToolModal(found.id);
+      } else {
+        alert("Codice QR non riconosciuto nel magazzino: " + code);
+      }
+    };
+
+    // EXPORT CSV (SOLO ADMIN)
+    window.exportCSV = function() {
+      if (!currentUser || currentUser.role !== "admin") return;
+      const rows = [["Data_Ora", "Azione", "Operatore", "Codice", "Attrezzo", "Dettaglio"]];
+      logs.forEach(l => {
+        rows.push([l.timeStr || "", l.action || "", l.user || "", l.toolCode || "", l.toolName || "", l.message || ""]);
+      });
+      const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", "storico_magazzino_setaccioli.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    initApp();
+  </script>
+</body>
+</html>
